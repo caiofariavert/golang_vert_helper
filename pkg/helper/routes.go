@@ -17,8 +17,7 @@ import (
 // Rotas registradas em /api/helper/v1/:
 //
 //	GET  /healthcare/                     → status geral de todos os serviços
-//	GET  /healthcare/:name                → status de um serviço específico
-//	POST /healthcare/:name/refresh        → força novo health check
+//	GET  /healthcare/:name                → status de um serviço específico (query opcional: force_refresh=true)
 //	GET  /actions/                        → lista actions (query: service_id)
 //	GET  /actions/:slug                   → detalhe de uma action
 //	POST /actions/:slug/execute           → executa uma action
@@ -36,7 +35,6 @@ func (h *Helper) RegisterRoutes(router *gin.Engine, db *gorm.DB, middleware *gin
 	// Health check
 	group.GET("/healthcare/", handlers.GetHealthcare)
 	group.GET("/healthcare/:name", handlers.GetServiceHealth)
-	group.POST("/healthcare/:name/refresh", handlers.RefreshServiceHealth)
 
 	// Actions
 	group.GET("/actions/", handlers.ListActions)

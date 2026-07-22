@@ -513,6 +513,8 @@ Todas as rotas são prefixadas com `/api/helper/v1`.
 #### `GET /api/helper/v1/healthcare/`
 Retorna o status geral de todos os serviços monitorados.
 
+**Query param opcional:** `force_refresh=true` para executar os checks imediatamente.
+
 **Response 200:**
 ```json
 {
@@ -537,6 +539,8 @@ Retorna o status geral de todos os serviços monitorados.
 #### `GET /api/helper/v1/healthcare/:name`
 Retorna o último status registrado de um serviço específico.
 
+**Query param opcional:** `force_refresh=true` para executar o check imediatamente.
+
 **Response 200:**
 ```json
 {
@@ -549,23 +553,6 @@ Retorna o último status registrado de um serviço específico.
 ```
 
 **Response 404:** Serviço não encontrado.
-
-#### `POST /api/helper/v1/healthcare/:name/refresh`
-Força a execução imediata do health check do serviço.
-
-**Response 200:**
-```json
-{
-  "status": "healthy",
-  "message": "PostgreSQL connection is healthy",
-  "timestamp": "2026-07-21T10:05:00Z",
-  "data": {
-    "open_connections": 5,
-    "in_use": 2,
-    "idle": 3
-  }
-}
-```
 
 ---
 

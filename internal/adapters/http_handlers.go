@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -34,6 +35,28 @@ func NewHandlers(
 
 // GetHealthcare retorna o status de saúde de todos os serviços
 func (h *Handlers) GetHealthcare(c *gin.Context) {
+	forceRefreshRaw := c.DefaultQuery("force_refresh", "false")
+	forceRefresh, parseErr := strconv.ParseBool(forceRefreshRaw)
+	if parseErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid force_refresh query param"})
+		return
+	}
+
+	if forceRefresh {
+		freshResults := h.healthService.CheckAll(c.Request.Context())
+		response := make(map[string]gin.H)
+		for serviceName, result := range freshResults {
+			response[serviceName] = gin.H{
+				"status":       string(result.Status),
+				"message":      result.Message,
+				"last_updated": result.Timestamp,
+			}
+		}
+
+		c.JSON(http.StatusOK, response)
+		return
+	}
+
 	statuses, err := h.healthService.GetAllLatestStatuses(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -59,28 +82,32 @@ func (h *Handlers) GetHealthcare(c *gin.Context) {
 // GetServiceHealth retorna o status de saúde de um serviço específico
 func (h *Handlers) GetServiceHealth(c *gin.Context) {
 	name := c.Param("name")
+	forceRefreshRaw := c.DefaultQuery("force_refresh", "false")
+	forceRefresh, parseErr := strconv.ParseBool(forceRefreshRaw)
+	if parseErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid force_refresh query param"})
+		return
+	}
+
+	if forceRefresh {
+		result, err := h.healthService.CheckService(c.Request.Context(), name)
+		if err != nil {
+			if err == domain.ErrCheckerNotFound {
+				c.JSON(http.StatusNotFound, gin.H{"error": "no checker registered for this service"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, result)
+		return
+	}
 
 	result, err := h.healthService.GetLatestStatus(c.Request.Context(), name)
 	if err != nil {
 		if err == domain.ErrServiceNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, result)
-}
-
-// RefreshServiceHealth força a execução do health check de um serviço
-func (h *Handlers) RefreshServiceHealth(c *gin.Context) {
-	name := c.Param("name")
-
-	result, err := h.healthService.CheckService(c.Request.Context(), name)
-	if err != nil {
-		if err == domain.ErrCheckerNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "no checker registered for this service"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
