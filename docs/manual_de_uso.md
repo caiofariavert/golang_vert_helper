@@ -80,6 +80,8 @@ Um **serviço** é qualquer dependência que você quer monitorar. Você impleme
 
 ### Checkers prontos
 
+Quando você registra um serviço, ele é **automaticamente persistido no banco**.
+
 ```go
 import healthchecks "github.com/caiofariavert/golang_vert_helper/pkg/health_checks"
 
@@ -148,39 +150,193 @@ h.RegisterService("redis", &RedisChecker{client: redisClient})
 
 ## 4. Registrando Actions
 
-Uma **action** representa uma operação interativa — com formulário de entrada — que pode ser executada pelo usuário. O handler recebe as respostas do formulário e retorna o resultado.
+Uma **action** representa uma operação interativa — com formulário de entrada — que pode ser executada pelo usuário.
+
+### Estrutura Recomendada
+
+Para organizar melhor o código, **recomenda-se criar um arquivo separado** para registrar as actions. Por exemplo, `internal/actions/actions.go`.
+
+**Arquivo: `internal/actions/actions.go`**
 
 ```go
-h.RegisterAction("reiniciar-servico", func(
-    ctx context.Context,
-    action *contracts.Action,
-    input map[string]interface{},
-) (*contracts.ActionResult, error) {
-    servico := input["servico"].(string)
-    motivo  := input["motivo"].(string)
+package actions
 
-    // Sua lógica aqui
-    log.Printf("Reiniciando %s — motivo: %s", servico, motivo)
+import (
+	"context"
+	"log/slog"
 
-    return &contracts.ActionResult{
-        Success: true,
-        Message: "Serviço reiniciado com sucesso",
-        Data:    map[string]interface{}{"servico": servico},
-    }, nil
-})
+	"github.com/caiofariavert/golang_vert_helper/internal/domain"
+	"github.com/caiofariavert/golang_vert_helper/pkg/helper"
+)
+
+// RegisterActions registra todas as actions da aplicação
+func RegisterActions(h *helper.Helper, logger *slog.Logger) error {
+	// Defina as questões de cada action
+	reiniciarServicoQuestions := []domain.Question{
+		{
+			Slug:      "servico",
+			InputType: domain.QuestionInputTypeSelect,
+			Label:     "Qual serviço?",
+			Required:  true,
+			Options:   []string{"api", "worker", "scheduler"},
+			Order:     1,
+		},
+		{
+			Slug:      "motivo",
+			InputType: domain.QuestionInputTypeTextarea,
+			Label:     "Motivo do reinício",
+			Required:  true,
+			Order:     2,
+		},
+	}
+
+	// Registre a action com seu handler
+	err := h.RegisterAction(
+		"reiniciar-servico",
+		"Reiniciar Serviço",
+		"Reinicia um serviço específico da aplicação",
+		func(ctx context.Context, action *domain.Action, input map[string]interface{}) (*domain.ActionResult, error) {
+			servico := input["servico"].(string)
+			motivo  := input["motivo"].(string)
+
+			logger.Info("Reiniciando serviço", "servico", servico, "motivo", motivo)
+
+			// Sua lógica de reinício aqui
+			return &domain.ActionResult{
+				Success: true,
+				Message: "Serviço reiniciado com sucesso",
+				Data:    map[string]interface{}{"servico": servico},
+			}, nil
+		},
+		reiniciarServicoQuestions,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// Opcionalmente, vincule a action a serviços específicos
+	// Isso permite recomendações quando esses serviços falham
+	if err := h.LinkActionToService(ctx, "reiniciar-servico", "kafka"); err != nil {
+		logger.Error("falha ao vincular action ao serviço", "error", err)
+	}
+
+	return nil
+}
 ```
 
-O `input` é um `map[string]interface{}` com as respostas do usuário, onde a chave é o `slug` de cada questão definida na action.
+**No seu `main.go` ou inicialização:**
 
----
+```go
+func main() {
+	// ... setup do banco e criação do helper ...
 
-## 5. Sincronizando Definições com o Banco
+	h := helper.New(db)
 
-Use `Sync` para garantir que as definições de serviços e actions no seu código estejam persistidas no banco. Normalmente chamado na inicialização da aplicação.
+	// Registre as actions
+	if err := actions.RegisterActions(h, logger); err != nil {
+		log.Fatalf("falha ao registrar actions: %v", err)
+	}
+
+	// ... resto da aplicação ...
+}
+```
+
+### Registração Inline (Simples)
+
+Se você preferir registrar actions diretamente sem um arquivo separado:
+
+```go
+ctx := context.Background()
+
+// Defina as questões
+questions := []domain.Question{
+	{
+		Slug:      "tipo",
+		InputType: domain.QuestionInputTypeSelect,
+		Label:     "Tipo de cache",
+		Required:  true,
+		Options:   []string{"redis", "memcached", "local"},
+		Order:     1,
+	},
+}
+
+// Registre a action com suas questões
+err := h.RegisterAction(
+	"limpar-cache",
+	"Limpar Cache",
+	"Limpa o cache do sistema",
+	func(ctx context.Context, action *domain.Action, input map[string]interface{}) (*domain.ActionResult, error) {
+		tipo := input["tipo"].(string)
+		// ... lógica de limpeza
+		return &domain.ActionResult{Success: true, Message: "Cache " + tipo + " limpo"}, nil
+	},
+	questions,
+)
+
+if err != nil {
+	log.Fatalf("falha ao registrar action: %v", err)
+}
+```
+
+### Questões Condicionais (Parent-Child)
+
+```go
+questions := []domain.Question{
+	{
+		Slug:      "tipo",
+		InputType: domain.QuestionInputTypeSelect,
+		Label:     "Tipo do arquivo",
+		Required:  true,
+		Options:   []string{"CSV", "JSON"},
+		Order:     1,
+		Children: []domain.Question{
+			{
+				Slug:        "csv-fonte",
+				InputType:   domain.QuestionInputTypeSelect,
+				Label:       "Fonte do CSV",
+				Required:    true,
+				Options:     []string{"upload", "url"},
+				ParentValue: "CSV",
+				Order:       1,
+			},
+			{
+				Slug:        "workflow-id",
+				InputType:   domain.QuestionInputTypeText,
+				Label:       "ID do Workflow",
+				Required:    true,
+				ParentValue: "JSON",
+				Order:       1,
+			},
+		},
+	},
+}
+```
+
+### Vinculando Actions a Serviços
+
+Uma action pode ser vinculada a um ou mais serviços. Essa vinculação é útil para **recomendações**: quando um serviço falha, a API pode sugerir actions vinculadas a ele.
+
+```go
+ctx := context.Background()
+
+// Vincule a action a um serviço
+if err := h.LinkActionToService(ctx, "processar-documento", "kafka"); err != nil {
+	log.Printf("falha ao vincular action: %v", err)
+}
+
+// Você pode vincular a mesma action a múltiplos serviços
+if err := h.LinkActionToService(ctx, "processar-documento", "s3"); err != nil {
+	log.Printf("falha ao vincular action: %v", err)
+}
+```
+
+Se você preferir usar o método `Sync`:
 
 ```go
 import "github.com/caiofariavert/golang_vert_helper/pkg/contracts"
 
+// Usar Sync é opcional - apenas para refresh ou em casos especiais
 err := h.Sync(ctx, []contracts.ServiceDefinition{
     {
         Name:        "meu-sistema",
@@ -211,31 +367,6 @@ err := h.Sync(ctx, []contracts.ServiceDefinition{
         },
     },
 })
-```
-
-### Questões condicionais (parent-child)
-
-```go
-// A questão "ambiente-custom" só aparece se "ambiente" == "outro"
-{
-    Slug:        "ambiente",
-    InputType:   contracts.QuestionInputTypeSelect,
-    Label:       "Ambiente",
-    Required:    true,
-    Options:     []string{"producao", "staging", "outro"},
-    Order:       1,
-    Children: []contracts.QuestionDefinition{
-        {
-            Slug:        "ambiente-custom",
-            InputType:   contracts.QuestionInputTypeText,
-            Label:       "Especifique o ambiente",
-            Required:    true,
-            ParentSlug:  "ambiente",
-            ParentValue: "outro",
-            Order:       1,
-        },
-    },
-},
 ```
 
 ---
@@ -538,20 +669,40 @@ Retorna o detalhe de um worker específico.
 ### `helper.New(db *gorm.DB, opts ...Option) *Helper`
 Cria uma instância do Helper.
 
-### `h.RegisterService(name string, checker domain.HealthChecker)`
-Registra um health checker para um serviço.
+### `h.RegisterService(name string, checker domain.HealthChecker) error`
+Registra um health checker para um serviço e **sincroniza automaticamente** no banco.
 
-### `h.RegisterAction(slug string, handler domain.ActionHandler)`
-Registra um handler para uma action.
+**Retorna um erro se a sincronização falhar.**
+
+### `h.RegisterAction(slug, title, description string, handler domain.ActionHandler, questions []domain.Question) error`
+Registra uma action com suas questões e **sincroniza automaticamente** no banco.
+
+**Parâmetros:**
+- `slug`: Identificador único da action (ex: "limpar-cache")
+- `title`: Título exibível (ex: "Limpar Cache")
+- `description`: Descrição da action
+- `handler`: Função que executa a action
+- `questions`: Array de questões do formulário (pode ser vazio)
+
+**Retorna um erro se a sincronização falhar.**
+
+### `h.LinkActionToService(ctx context.Context, actionSlug, serviceName string) error`
+Vincula uma action a um serviço. Uma action pode ser vinculada a múltiplos serviços.
+
+**Características:**
+- Não cria duplicatas (idempotente)
+- Retorna `nil` se o vínculo já existe
 
 ### `h.RegisterRoutes(router *gin.Engine, db *gorm.DB, middleware *gin.HandlerFunc)`
 Registra todas as rotas no router Gin do cliente. Passa `nil` como middleware para sem autenticação.
 
 ### `h.Sync(ctx context.Context, defs []services.ServiceDefinition) error`
-Sincroniza definições de serviços e actions com o banco.
+**Opcional.** Sincroniza definições de serviços e actions com o banco. Útil para refresh de dados.
+
+**Nota:** Normalmente não é necessário pois `RegisterService` e `RegisterAction` já sincronizam automaticamente.
 
 ### `h.AutoMigrate() error`
-Executa migrations de schema via GORM para todos os modelos do helper em uma unica chamada.
+Executa migrations de schema via GORM para todos os modelos do helper (incluindo a nova tabela `gohelper_action_services`) em uma única chamada.
 
 ### `h.CheckService(ctx, name) (*domain.HealthCheckResult, error)`
 Executa o health check de um serviço manualmente.
@@ -587,7 +738,15 @@ if err := h.AutoMigrate(); err != nil {
 }
 ```
 
-Esse metodo aplica automaticamente o schema de todos os modelos do pacote (`services`, `service_health`, `actions`, `questions`, `action_executions`, `workers` e `worker_snapshots`) em uma unica chamada.
+Esse metodo aplica automaticamente o schema de todos os modelos do pacote:
+- `gohelper_services` - serviços monitorados
+- `gohelper_service_health` - histórico de health checks
+- `gohelper_actions` - ações disponíveis
+- `gohelper_action_services` - vinculação many-to-many entre actions e services
+- `gohelper_questions` - questões dos formulários
+- `gohelper_action_executions` - auditoria de execuções
+- `gohelper_workers` - workers monitorados
+- `gohelper_worker_snapshots` - histórico de workers
 
 Se voce inicializa via adapter interno, o processo ja e automatico:
 
@@ -670,109 +829,150 @@ Se `health.json` ainda nao existir, o Nginx responde `503` ate o primeiro ciclo 
 
 ## Exemplo completo de integração
 
+### Arquivo: `internal/actions/actions.go`
+
+```go
+package actions
+
+import (
+	"context"
+	"log/slog"
+
+	"github.com/caiofariavert/golang_vert_helper/internal/domain"
+	"github.com/caiofariavert/golang_vert_helper/pkg/helper"
+)
+
+// RegisterActions registra todas as actions da aplicação
+func RegisterActions(h *helper.Helper, ctx context.Context, logger *slog.Logger) error {
+	// Definir questões
+	cleanCacheQuestions := []domain.Question{
+		{
+			Slug:      "tipo",
+			InputType: domain.QuestionInputTypeSelect,
+			Label:     "Tipo de cache",
+			Required:  true,
+			Options:   []string{"redis", "memcached", "local"},
+			Order:     1,
+		},
+	}
+
+	// Registrar action
+	if err := h.RegisterAction(
+		"limpar-cache",
+		"Limpar Cache",
+		"Limpa o cache do sistema",
+		func(ctx context.Context, action *domain.Action, input map[string]interface{}) (*domain.ActionResult, error) {
+			tipo := input["tipo"].(string)
+			logger.Info("Limpando cache", "tipo", tipo)
+			return &domain.ActionResult{
+				Success: true,
+				Message: "Cache " + tipo + " limpo",
+			}, nil
+		},
+		cleanCacheQuestions,
+	); err != nil {
+		return err
+	}
+
+	// Vincular a ações a serviços (opcional)
+	if err := h.LinkActionToService(ctx, "limpar-cache", "redis"); err != nil {
+		logger.Error("falha ao vincular action", "error", err)
+	}
+
+	return nil
+}
+```
+
+### Arquivo: `cmd/main.go`
+
 ```go
 package main
 
 import (
-    "context"
-    "log/slog"
-    "os"
+	"context"
+	"log/slog"
+	"os"
 
-    "github.com/gin-gonic/gin"
-    "gorm.io/driver/postgres"
-    "gorm.io/gorm"
+	"github.com/gin-gonic/gin"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
-    "github.com/caiofariavert/golang_vert_helper/pkg/contracts"
-    healthchecks "github.com/caiofariavert/golang_vert_helper/pkg/health_checks"
-    "github.com/caiofariavert/golang_vert_helper/pkg/helper"
+	"myapp/internal/actions"
+	healthchecks "github.com/caiofariavert/golang_vert_helper/pkg/health_checks"
+	"github.com/caiofariavert/golang_vert_helper/pkg/helper"
 )
 
 func main() {
-    // Sua conexão GORM existente
-    db, _ := gorm.Open(postgres.Open(os.Getenv("DATABASE_URL")), &gorm.Config{})
+	logger := slog.Default()
 
-    // WorkerPool para monitorar goroutines
-    pool := healthchecks.NewWorkerPool()
+	// Sua conexão GORM existente
+	db, _ := gorm.Open(postgres.Open(os.Getenv("DATABASE_URL")), &gorm.Config{})
 
-    // Inicializar helper
-    h := helper.New(db,
-        helper.WithLogger(slog.Default()),
-        helper.WithWorkerPool(pool),
-        helper.WithOnHealthCheckFailure(func(ctx context.Context, svc *contracts.Service, result *contracts.HealthCheckResult) error {
-            slog.Error("serviço com falha", "service", svc.Name, "status", result.Status)
-            return nil
-        }),
-    )
+	// WorkerPool para monitorar goroutines (opcional)
+	pool := healthchecks.NewWorkerPool()
 
-    // Registrar health checkers
-    h.RegisterService("postgres", healthchecks.NewGormPostgresChecker(db))
+	// Inicializar helper
+	h := helper.New(db,
+		helper.WithLogger(logger),
+		helper.WithWorkerPool(pool),
+		helper.WithOnHealthCheckFailure(func(ctx context.Context, svc *domain.Service, result *domain.HealthCheckResult) error {
+			logger.Error("serviço com falha", "service", svc.Name, "status", result.Status)
+			return nil
+		}),
+	)
 
-    // Registrar actions
-    h.RegisterAction("limpar-cache", func(ctx context.Context, action *contracts.Action, input map[string]interface{}) (*contracts.ActionResult, error) {
-        tipo := input["tipo"].(string)
-        // ... lógica de limpeza
-        return &contracts.ActionResult{Success: true, Message: "Cache " + tipo + " limpo"}, nil
-    })
+	// Executar migrations
+	if err := h.AutoMigrate(); err != nil {
+		logger.Fatalf("falha ao executar migrations: %v", err)
+	}
 
-    // Sincronizar definições com o banco
-    h.Sync(context.Background(), []contracts.ServiceDefinition{
-        {
-            Name:        "meu-sistema",
-            Description: "Backend principal",
-            Actions: []contracts.ActionDefinition{
-                {
-                    Slug:  "limpar-cache",
-                    Title: "Limpar Cache",
-                    Questions: []contracts.QuestionDefinition{
-                        {
-                            Slug:      "tipo",
-                            InputType: contracts.QuestionInputTypeSelect,
-                            Label:     "Tipo de cache",
-                            Required:  true,
-                            Options:   []string{"redis", "memcached", "local"},
-                            Order:     1,
-                        },
-                    },
-                },
-            },
-        },
-    })
+	// Registrar health checkers
+	// Isso sincroniza automaticamente no banco
+	if err := h.RegisterService("postgres", healthchecks.NewGormPostgresChecker(db)); err != nil {
+		logger.Fatalf("falha ao registrar postgres checker: %v", err)
+	}
 
-    // Iniciar scheduler (health check a cada 10 minutos)
-    scheduler := helper.NewScheduler(h, helper.DefaultSchedulerConfig())
-    defer scheduler.Stop()
+	if err := h.RegisterService("s3", healthchecks.NewS3Checker(healthchecks.S3Config{
+		Region: "sa-east-1",
+	})); err != nil {
+		logger.Fatalf("falha ao registrar s3 checker: %v", err)
+	}
 
-    // Seu router Gin existente
-    router := gin.Default()
+	// Registrar actions
+	ctx := context.Background()
+	if err := actions.RegisterActions(h, ctx, logger); err != nil {
+		logger.Fatalf("falha ao registrar actions: %v", err)
+	}
 
-    // Suas próprias rotas
-    router.GET("/ping", func(c *gin.Context) { c.JSON(200, gin.H{"pong": true}) })
+	// Iniciar scheduler (health check periódico)
+	scheduler := helper.NewScheduler(h, helper.DefaultSchedulerConfig())
+	defer scheduler.Stop()
 
-    // Middleware de autenticação (opcional)
-    auth := func(c *gin.Context) {
-        if c.GetHeader("X-API-Key") != os.Getenv("API_KEY") {
-            c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
-            return
-        }
-        c.Next()
-    }
+	// Seu router Gin existente
+	router := gin.Default()
 
-    // Registrar rotas do helper com autenticação
-    h.RegisterRoutes(router, db, &auth)
+	// Suas próprias rotas
+	router.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{"pong": true})
+	})
 
-    // Registrar worker
-    pool.Register("worker-principal", "Worker Principal")
-    go runWorker(pool)
+	// Registrar rotas do helper
+	h.RegisterRoutes(router, db, nil) // sem middleware
 
-    router.Run(":8080")
+	// Registrar worker (opcional)
+	pool.Register("worker-principal", "Worker Principal")
+	go runWorker(pool)
+
+	// Iniciar servidor
+	router.Run(":8080")
 }
 
 func runWorker(pool *healthchecks.WorkerPool) {
-    pool.UpdateStatus("worker-principal", healthchecks.WorkerRunning, "")
-    for {
-        pool.UpdateStatus("worker-principal", healthchecks.WorkerProcessing, "")
-        // ... processar tarefa
-        pool.UpdateStatus("worker-principal", healthchecks.WorkerIdle, "")
-    }
+	pool.UpdateStatus("worker-principal", healthchecks.WorkerRunning, "")
+	for {
+		pool.UpdateStatus("worker-principal", healthchecks.WorkerProcessing, "")
+		// ... processar tarefa
+		pool.UpdateStatus("worker-principal", healthchecks.WorkerIdle, "")
+	}
 }
 ```

@@ -14,16 +14,20 @@ import (
 
 // ActionService gerencia o ciclo de vida das actions
 type ActionService struct {
-	actionRepo    domain.ActionRepository
-	executionRepo domain.ActionExecutionRepository
-	handlers      map[string]domain.ActionHandler
-	onExecution   domain.OnActionExecution
-	logger        *slog.Logger
+	actionRepo        domain.ActionRepository
+	actionServiceRepo domain.ActionServiceRepository
+	questionRepo      domain.QuestionRepository
+	executionRepo     domain.ActionExecutionRepository
+	handlers          map[string]domain.ActionHandler
+	onExecution       domain.OnActionExecution
+	logger            *slog.Logger
 }
 
 // NewActionService cria um novo ActionService
 func NewActionService(
 	actionRepo domain.ActionRepository,
+	actionServiceRepo domain.ActionServiceRepository,
+	questionRepo domain.QuestionRepository,
 	executionRepo domain.ActionExecutionRepository,
 	logger *slog.Logger,
 ) *ActionService {
@@ -31,16 +35,100 @@ func NewActionService(
 		logger = slog.Default()
 	}
 	return &ActionService{
-		actionRepo:    actionRepo,
-		executionRepo: executionRepo,
-		handlers:      make(map[string]domain.ActionHandler),
-		logger:        logger,
+		actionRepo:        actionRepo,
+		actionServiceRepo: actionServiceRepo,
+		questionRepo:      questionRepo,
+		executionRepo:     executionRepo,
+		handlers:          make(map[string]domain.ActionHandler),
+		logger:            logger,
 	}
 }
 
 // RegisterHandler registra um handler para um slug de ação
 func (s *ActionService) RegisterHandler(slug string, handler domain.ActionHandler) {
 	s.handlers[slug] = handler
+}
+
+// RegisterActionWithQuestions registra uma action com suas questões e sincroniza no banco
+func (s *ActionService) RegisterActionWithQuestions(ctx context.Context, action *domain.Action, questions []domain.Question) error {
+	// Busca ou cria a action
+	existing, err := s.actionRepo.GetBySlug(ctx, action.Slug)
+	if err != nil && err != domain.ErrActionNotFound {
+		return err
+	}
+
+	if existing == nil {
+		// Cria nova action
+		action.ID = uuid.New().String()
+		if err := s.actionRepo.Create(ctx, action); err != nil {
+			return fmt.Errorf("falha ao criar action: %w", err)
+		}
+		existing = action
+	} else {
+		// Atualiza action existente
+		existing.Title = action.Title
+		existing.Description = action.Description
+		existing.Active = action.Active
+		if err := s.actionRepo.Update(ctx, existing); err != nil {
+			return fmt.Errorf("falha ao atualizar action: %w", err)
+		}
+	}
+
+	// Sincroniza as questões
+	if err := s.syncQuestions(ctx, existing.ID, questions); err != nil {
+		return fmt.Errorf("falha ao sincronizar questões: %w", err)
+	}
+
+	s.logger.Info("action registered", "slug", action.Slug, "action_id", existing.ID)
+	return nil
+}
+
+// syncQuestions sincroniza as questões de uma action no banco
+func (s *ActionService) syncQuestions(ctx context.Context, actionID string, questions []domain.Question) error {
+	// Remove todas as questões existentes
+	existingQuestions, err := s.questionRepo.ListByActionID(ctx, actionID)
+	if err != nil {
+		return err
+	}
+
+	for _, q := range existingQuestions {
+		if err := s.questionRepo.Delete(ctx, q.ID); err != nil {
+			s.logger.Error("falha ao deletar questão", "id", q.ID, "error", err)
+		}
+	}
+
+	// Cria as novas questões
+	questionMap := make(map[string]*domain.Question)
+	if err := s.createQuestions(ctx, actionID, questions, nil, questionMap); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// createQuestions cria as questões recursivamente (suporta filhas/children)
+func (s *ActionService) createQuestions(ctx context.Context, actionID string, questions []domain.Question, parentID *string, questionMap map[string]*domain.Question) error {
+	for i, q := range questions {
+		q.ID = uuid.New().String()
+		q.ActionID = actionID
+		q.ParentID = parentID
+		q.Order = i
+
+		if err := s.questionRepo.Create(ctx, &q); err != nil {
+			return fmt.Errorf("falha ao criar questão: %w", err)
+		}
+
+		questionMap[q.Slug] = &q
+
+		// Se tem filhas, processa recursivamente
+		if len(q.Children) > 0 {
+			qID := q.ID
+			if err := s.createQuestions(ctx, actionID, q.Children, &qID, questionMap); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // SetOnExecution define o callback chamado após cada execução

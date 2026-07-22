@@ -53,14 +53,35 @@ type ActionRepository interface {
 	// GetBySlug recupera uma ação pelo slug
 	GetBySlug(ctx context.Context, slug string) (*Action, error)
 
-	// ListByServiceID retorna todas as ações de um serviço
+	// ListByServiceID retorna todas as ações vinculadas a um serviço
 	ListByServiceID(ctx context.Context, serviceID string) ([]*Action, error)
+
+	// ListAll retorna todas as ações
+	ListAll(ctx context.Context) ([]*Action, error)
 
 	// Update atualiza uma ação
 	Update(ctx context.Context, action *Action) error
 
 	// Delete remove uma ação
 	Delete(ctx context.Context, id string) error
+}
+
+// ActionServiceRepository define as operações de persistência para ActionService (junção)
+type ActionServiceRepository interface {
+	// Create insere um vínculo entre action e service
+	Create(ctx context.Context, actionService *ActionService) error
+
+	// GetByActionAndService recupera um vínculo específico
+	GetByActionAndService(ctx context.Context, actionID, serviceID string) (*ActionService, error)
+
+	// ListByActionID retorna todos os serviços vinculados a uma ação
+	ListByActionID(ctx context.Context, actionID string) ([]*ActionService, error)
+
+	// ListByServiceID retorna todas as ações vinculadas a um serviço
+	ListByServiceID(ctx context.Context, serviceID string) ([]*ActionService, error)
+
+	// Delete remove um vínculo
+	Delete(ctx context.Context, actionID, serviceID string) error
 }
 
 // QuestionRepository define as operações de persistência para Question

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/caiofariavert/golang_vert_helper/internal/adapters"
@@ -42,6 +43,8 @@ func New(db *gorm.DB, opts ...Option) *Helper {
 	)
 	h.actionService = services.NewActionService(
 		repos.GetActionRepository(),
+		repos.GetActionServiceRepository(),
+		repos.GetQuestionRepository(),
 		repos.GetActionExecutionRepository(),
 		logger,
 	)
@@ -73,6 +76,8 @@ func WithLogger(l *slog.Logger) Option {
 		)
 		h.actionService = services.NewActionService(
 			h.repos.GetActionRepository(),
+			h.repos.GetActionServiceRepository(),
+			h.repos.GetQuestionRepository(),
 			h.repos.GetActionExecutionRepository(),
 			l,
 		)
@@ -101,14 +106,67 @@ func WithOnActionExecution(fn domain.OnActionExecution) Option {
 	}
 }
 
-// RegisterService registra um health checker para um serviço
-func (h *Helper) RegisterService(name string, checker domain.HealthChecker) {
+// RegisterService registra um health checker e sincroniza o serviço no banco
+func (h *Helper) RegisterService(name string, checker domain.HealthChecker) error {
+	ctx := context.Background()
+	_, err := h.healthService.RegisterService(ctx, name, "")
+	if err != nil {
+		return err
+	}
 	h.healthService.RegisterChecker(name, checker)
+	return nil
 }
 
-// RegisterAction registra um handler para uma action pelo slug
-func (h *Helper) RegisterAction(slug string, handler domain.ActionHandler) {
+// RegisterAction registra um handler para uma action e sincroniza no banco
+func (h *Helper) RegisterAction(slug string, title, description string, handler domain.ActionHandler, questions []domain.Question) error {
+	ctx := context.Background()
+	action := &domain.Action{
+		Slug:        slug,
+		Title:       title,
+		Description: description,
+		Active:      true,
+	}
+
+	if err := h.actionService.RegisterActionWithQuestions(ctx, action, questions); err != nil {
+		return err
+	}
+
 	h.actionService.RegisterHandler(slug, handler)
+	return nil
+}
+
+// LinkActionToService vincula uma action a um serviço
+// Essa vinculação permite recomendações de ações quando um serviço falha
+func (h *Helper) LinkActionToService(ctx context.Context, actionSlug, serviceName string) error {
+	action, err := h.actionService.GetAction(ctx, actionSlug)
+	if err != nil {
+		return err
+	}
+
+	service, err := h.repos.GetServiceRepository().GetByName(ctx, serviceName)
+	if err != nil {
+		return err
+	}
+
+	// Verifica se o vínculo já existe
+	_, err = h.repos.GetActionServiceRepository().GetByActionAndService(ctx, action.ID, service.ID)
+	if err == nil {
+		// Vínculo já existe, não é um erro
+		return nil
+	}
+
+	if err != domain.ErrActionNotFound {
+		return err
+	}
+
+	// Cria o vínculo
+	actionService := &domain.ActionService{
+		ID:        uuid.New().String(),
+		ActionID:  action.ID,
+		ServiceID: service.ID,
+	}
+
+	return h.repos.GetActionServiceRepository().Create(ctx, actionService)
 }
 
 // Sync sincroniza definições de serviços e actions com o banco
@@ -122,6 +180,7 @@ func (h *Helper) AutoMigrate() error {
 		&domain.Service{},
 		&domain.ServiceHealth{},
 		&domain.Action{},
+		&domain.ActionService{},
 		&domain.Question{},
 		&domain.ActionExecution{},
 		&domain.Worker{},

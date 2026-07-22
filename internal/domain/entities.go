@@ -49,22 +49,39 @@ func (ServiceHealth) TableName() string {
 // Action representa uma ação que pode ser executada no contexto de uma questão
 type Action struct {
 	ID          string     `gorm:"primaryKey;type:uuid"`
-	ServiceID   string     `gorm:"type:uuid;not null;index"`
 	Slug        string     `gorm:"type:varchar(255);not null;uniqueIndex"`
 	Title       string     `gorm:"type:varchar(255);not null"`
 	Description string     `gorm:"type:text"`
 	Active      bool       `gorm:"default:true;index"`
-	Questions   []Question `gorm:"many2many:action_questions;"`
+	Questions   []Question `gorm:"foreignKey:ActionID;references:ID"`
+	Services    []Service  `gorm:"many2many:gohelper_action_services;"`
 	CreatedAt   time.Time  `gorm:"autoCreateTime"`
 	UpdatedAt   time.Time  `gorm:"autoUpdateTime"`
-
-	// Foreign key
-	Service *Service `gorm:"foreignKey:ServiceID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
 // TableName especifica o nome da tabela
 func (Action) TableName() string {
 	return "gohelper_actions"
+}
+
+// ========== ActionService Entity (Many-to-Many Junction) ==========
+
+// ActionService representa o vínculo entre uma ação e um serviço
+// Uma ação pode ser recomendada quando um ou mais serviços falham
+type ActionService struct {
+	ID        string    `gorm:"primaryKey;type:uuid"`
+	ActionID  string    `gorm:"type:uuid;not null;index:idx_action_service,unique"`
+	ServiceID string    `gorm:"type:uuid;not null;index:idx_action_service,unique"`
+	CreatedAt time.Time `gorm:"autoCreateTime"`
+
+	// Foreign keys with cascade delete
+	Action  *Action  `gorm:"foreignKey:ActionID;references:ID;constraint:OnDelete:CASCADE"`
+	Service *Service `gorm:"foreignKey:ServiceID;references:ID;constraint:OnDelete:CASCADE"`
+}
+
+// TableName especifica o nome da tabela
+func (ActionService) TableName() string {
+	return "gohelper_action_services"
 }
 
 // ========== Question Entity ==========

@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -115,14 +116,25 @@ func (tdb *TestDB) CreateService(ctx context.Context, name string) *domain.Servi
 // CreateAction creates a test action
 func (tdb *TestDB) CreateAction(ctx context.Context, serviceID, slug, title string) *domain.Action {
 	action := &domain.Action{
-		ServiceID: serviceID,
-		Slug:      slug,
-		Title:     title,
-		Active:    true,
+		Slug:   slug,
+		Title:  title,
+		Active: true,
 	}
 
 	if err := tdb.DB.WithContext(ctx).Create(action).Error; err != nil {
 		tdb.t.Fatalf("failed to create test action: %v", err)
+	}
+
+	// Se um serviceID foi fornecido, vincula a action ao serviço
+	if serviceID != "" {
+		actionService := &domain.ActionService{
+			ID:        uuid.New().String(),
+			ActionID:  action.ID,
+			ServiceID: serviceID,
+		}
+		if err := tdb.DB.WithContext(ctx).Create(actionService).Error; err != nil {
+			tdb.t.Fatalf("failed to link action to service: %v", err)
+		}
 	}
 
 	return action

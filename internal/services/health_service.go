@@ -42,6 +42,42 @@ func (s *HealthService) RegisterChecker(serviceName string, checker domain.Healt
 	s.checkers[serviceName] = checker
 }
 
+// RegisterService registra um serviço e sincroniza no banco
+func (s *HealthService) RegisterService(ctx context.Context, serviceName, description string) (*domain.Service, error) {
+	// Tenta buscar o serviço
+	existing, err := s.serviceRepo.GetByName(ctx, serviceName)
+	if err != nil && err != domain.ErrServiceNotFound {
+		return nil, err
+	}
+
+	if existing != nil {
+		// Atualiza a descrição se mudou
+		if existing.Description != description {
+			existing.Description = description
+			if err := s.serviceRepo.Update(ctx, existing); err != nil {
+				return nil, err
+			}
+		}
+		s.logger.Info("service already registered", "name", serviceName)
+		return existing, nil
+	}
+
+	// Cria novo serviço
+	service := &domain.Service{
+		ID:          uuid.New().String(),
+		Name:        serviceName,
+		Description: description,
+		Enabled:     true,
+	}
+
+	if err := s.serviceRepo.Create(ctx, service); err != nil {
+		return nil, fmt.Errorf("falha ao criar serviço: %w", err)
+	}
+
+	s.logger.Info("service registered", "name", serviceName, "service_id", service.ID)
+	return service, nil
+}
+
 // SetOnFailure define o callback chamado quando um health check falha
 func (s *HealthService) SetOnFailure(fn domain.OnHealthCheckFailure) {
 	s.onFailure = fn

@@ -27,6 +27,17 @@ func DefaultSchedulerConfig() SchedulerConfig {
 	}
 }
 
+func checkScheduledHealthCheck(h *Helper, logger *slog.Logger) {
+	ctx := context.Background()
+	results := h.CheckAll(ctx)
+	for name, result := range results {
+		logger.Info("scheduled health check",
+			"service", name,
+			"status", result.Status,
+		)
+	}
+}
+
 // NewScheduler cria e inicia o scheduler de health checks
 func NewScheduler(h *Helper, cfg SchedulerConfig) *Scheduler {
 	if cfg.HealthCheckCron == "" {
@@ -41,16 +52,9 @@ func NewScheduler(h *Helper, cfg SchedulerConfig) *Scheduler {
 		helper: h,
 		logger: logger,
 	}
-
+	checkScheduledHealthCheck(h, logger) // Executa o health check imediatamente ao iniciar
 	c.AddFunc(cfg.HealthCheckCron, func() {
-		ctx := context.Background()
-		results := h.CheckAll(ctx)
-		for name, result := range results {
-			logger.Info("scheduled health check",
-				"service", name,
-				"status", result.Status,
-			)
-		}
+		checkScheduledHealthCheck(h, logger)
 	})
 
 	c.Start()

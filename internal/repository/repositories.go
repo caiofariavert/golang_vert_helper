@@ -218,12 +218,25 @@ func (r *ActionRepository) GetBySlug(ctx context.Context, slug string) (*domain.
 	return &action, nil
 }
 
-// ListByServiceID returns all actions for a service
+// ListByServiceID returns all actions linked to a service
 func (r *ActionRepository) ListByServiceID(ctx context.Context, serviceID string) ([]*domain.Action, error) {
 	var actions []*domain.Action
 	result := r.db.WithContext(ctx).
 		Preload("Questions").
-		Where("service_id = ?", serviceID).
+		Joins("JOIN gohelper_action_services ON gohelper_action_services.action_id = gohelper_actions.id").
+		Where("gohelper_action_services.service_id = ?", serviceID).
+		Find(&actions)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return actions, nil
+}
+
+// ListAll returns all actions
+func (r *ActionRepository) ListAll(ctx context.Context) ([]*domain.Action, error) {
+	var actions []*domain.Action
+	result := r.db.WithContext(ctx).
+		Preload("Questions").
 		Find(&actions)
 	if result.Error != nil {
 		return nil, result.Error
@@ -513,4 +526,83 @@ func (r *WorkerSnapshotRepository) ListByServiceID(ctx context.Context, serviceI
 		return nil, result.Error
 	}
 	return snapshots, nil
+}
+
+// ========== ActionServiceRepository ==========
+
+// ActionServiceRepository implements domain.ActionServiceRepository using GORM
+type ActionServiceRepository struct {
+	db *gorm.DB
+}
+
+// NewActionServiceRepository creates a new action service repository
+func NewActionServiceRepository(db *gorm.DB) *ActionServiceRepository {
+	return &ActionServiceRepository{db: db}
+}
+
+// Create inserts a new link between action and service
+func (r *ActionServiceRepository) Create(ctx context.Context, actionService *domain.ActionService) error {
+	if actionService.ID == "" {
+		actionService.ID = uuid.New().String()
+	}
+
+	result := r.db.WithContext(ctx).Create(actionService)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
+			// Link já existe, não é um erro
+			return nil
+		}
+		return result.Error
+	}
+	return nil
+}
+
+// GetByActionAndService retrieves a specific link
+func (r *ActionServiceRepository) GetByActionAndService(ctx context.Context, actionID, serviceID string) (*domain.ActionService, error) {
+	var actionService domain.ActionService
+	result := r.db.WithContext(ctx).
+		Where("action_id = ? AND service_id = ?", actionID, serviceID).
+		First(&actionService)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrActionNotFound
+		}
+		return nil, result.Error
+	}
+	return &actionService, nil
+}
+
+// ListByActionID returns all services linked to an action
+func (r *ActionServiceRepository) ListByActionID(ctx context.Context, actionID string) ([]*domain.ActionService, error) {
+	var links []*domain.ActionService
+	result := r.db.WithContext(ctx).
+		Where("action_id = ?", actionID).
+		Find(&links)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return links, nil
+}
+
+// ListByServiceID returns all actions linked to a service
+func (r *ActionServiceRepository) ListByServiceID(ctx context.Context, serviceID string) ([]*domain.ActionService, error) {
+	var links []*domain.ActionService
+	result := r.db.WithContext(ctx).
+		Where("service_id = ?", serviceID).
+		Find(&links)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return links, nil
+}
+
+// Delete removes a link
+func (r *ActionServiceRepository) Delete(ctx context.Context, actionID, serviceID string) error {
+	result := r.db.WithContext(ctx).
+		Where("action_id = ? AND service_id = ?", actionID, serviceID).
+		Delete(&domain.ActionService{})
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
 }

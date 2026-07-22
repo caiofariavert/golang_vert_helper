@@ -137,7 +137,6 @@ func (s *SyncService) syncAction(ctx context.Context, service *domain.Service, d
 	// Cria a action
 	action := &domain.Action{
 		ID:          uuid.New().String(),
-		ServiceID:   service.ID,
 		Slug:        def.Slug,
 		Title:       def.Title,
 		Description: def.Description,

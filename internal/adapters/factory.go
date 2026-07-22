@@ -14,6 +14,7 @@ type RepositoryFactory struct {
 	actionRepo          domain.ActionRepository
 	questionRepo        domain.QuestionRepository
 	actionExecutionRepo domain.ActionExecutionRepository
+	actionServiceRepo   domain.ActionServiceRepository
 	workerRepo          domain.WorkerRepository
 	workerSnapshotRepo  domain.WorkerSnapshotRepository
 }
@@ -26,6 +27,7 @@ func NewRepositoryFactory(db *gorm.DB) *RepositoryFactory {
 		actionRepo:          repository.NewActionRepository(db),
 		questionRepo:        repository.NewQuestionRepository(db),
 		actionExecutionRepo: repository.NewActionExecutionRepository(db),
+		actionServiceRepo:   repository.NewActionServiceRepository(db),
 		workerRepo:          repository.NewWorkerRepository(db),
 		workerSnapshotRepo:  repository.NewWorkerSnapshotRepository(db),
 	}
@@ -54,6 +56,11 @@ func (rf *RepositoryFactory) GetQuestionRepository() domain.QuestionRepository {
 // GetActionExecutionRepository returns the action execution repository
 func (rf *RepositoryFactory) GetActionExecutionRepository() domain.ActionExecutionRepository {
 	return rf.actionExecutionRepo
+}
+
+// GetActionServiceRepository returns the action service repository
+func (rf *RepositoryFactory) GetActionServiceRepository() domain.ActionServiceRepository {
+	return rf.actionServiceRepo
 }
 
 // GetWorkerRepository returns the worker repository
