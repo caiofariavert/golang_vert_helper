@@ -20,6 +20,8 @@ RUN apt-get update \
 WORKDIR /build
 COPY . .
 
+# Download dependencies before building
+RUN go mod download
 
 RUN go build -ldflags="-w -s \
     -linkmode external \

@@ -160,14 +160,10 @@ func TestActionRepository_Create(t *testing.T) {
 	actionRepo := NewActionRepository(db.DB)
 	ctx := context.Background()
 
-	// Create a service first
-	service := db.CreateService(ctx, "Test Service")
-
 	action := &domain.Action{
-		ServiceID: service.ID,
-		Slug:      "test-action",
-		Title:     "Test Action",
-		Active:    true,
+		Slug:   "test-action",
+		Title:  "Test Action",
+		Active: true,
 	}
 
 	if err := actionRepo.Create(ctx, action); err != nil {

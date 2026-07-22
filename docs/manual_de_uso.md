@@ -165,17 +165,17 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/caiofariavert/golang_vert_helper/internal/domain"
+	"github.com/caiofariavert/golang_vert_helper/pkg/contracts"
 	"github.com/caiofariavert/golang_vert_helper/pkg/helper"
 )
 
 // RegisterActions registra todas as actions da aplicação
 func RegisterActions(h *helper.Helper, logger *slog.Logger) error {
 	// Defina as questões de cada action
-	reiniciarServicoQuestions := []domain.Question{
+	reiniciarServicoQuestions := []contracts.Question{
 		{
 			Slug:      "servico",
-			InputType: domain.QuestionInputTypeSelect,
+			InputType: contracts.QuestionInputTypeSelect,
 			Label:     "Qual serviço?",
 			Required:  true,
 			Options:   []string{"api", "worker", "scheduler"},
@@ -183,7 +183,7 @@ func RegisterActions(h *helper.Helper, logger *slog.Logger) error {
 		},
 		{
 			Slug:      "motivo",
-			InputType: domain.QuestionInputTypeTextarea,
+			InputType: contracts.QuestionInputTypeTextarea,
 			Label:     "Motivo do reinício",
 			Required:  true,
 			Order:     2,
@@ -195,14 +195,14 @@ func RegisterActions(h *helper.Helper, logger *slog.Logger) error {
 		"reiniciar-servico",
 		"Reiniciar Serviço",
 		"Reinicia um serviço específico da aplicação",
-		func(ctx context.Context, action *domain.Action, input map[string]interface{}) (*domain.ActionResult, error) {
+		func(ctx context.Context, action *contracts.Action, input map[string]interface{}) (*contracts.ActionResult, error) {
 			servico := input["servico"].(string)
 			motivo  := input["motivo"].(string)
 
 			logger.Info("Reiniciando serviço", "servico", servico, "motivo", motivo)
 
 			// Sua lógica de reinício aqui
-			return &domain.ActionResult{
+			return &contracts.ActionResult{
 				Success: true,
 				Message: "Serviço reiniciado com sucesso",
 				Data:    map[string]interface{}{"servico": servico},
@@ -250,10 +250,10 @@ Se você preferir registrar actions diretamente sem um arquivo separado:
 ctx := context.Background()
 
 // Defina as questões
-questions := []domain.Question{
+questions := []contracts.Question{
 	{
 		Slug:      "tipo",
-		InputType: domain.QuestionInputTypeSelect,
+		InputType: contracts.QuestionInputTypeSelect,
 		Label:     "Tipo de cache",
 		Required:  true,
 		Options:   []string{"redis", "memcached", "local"},
@@ -266,10 +266,10 @@ err := h.RegisterAction(
 	"limpar-cache",
 	"Limpar Cache",
 	"Limpa o cache do sistema",
-	func(ctx context.Context, action *domain.Action, input map[string]interface{}) (*domain.ActionResult, error) {
+	func(ctx context.Context, action *contracts.Action, input map[string]interface{}) (*contracts.ActionResult, error) {
 		tipo := input["tipo"].(string)
 		// ... lógica de limpeza
-		return &domain.ActionResult{Success: true, Message: "Cache " + tipo + " limpo"}, nil
+		return &contracts.ActionResult{Success: true, Message: "Cache " + tipo + " limpo"}, nil
 	},
 	questions,
 )
@@ -282,18 +282,18 @@ if err != nil {
 ### Questões Condicionais (Parent-Child)
 
 ```go
-questions := []domain.Question{
+questions := []contracts.Question{
 	{
 		Slug:      "tipo",
-		InputType: domain.QuestionInputTypeSelect,
+		InputType: contracts.QuestionInputTypeSelect,
 		Label:     "Tipo do arquivo",
 		Required:  true,
 		Options:   []string{"CSV", "JSON"},
 		Order:     1,
-		Children: []domain.Question{
+		Children: []contracts.Question{
 			{
 				Slug:        "csv-fonte",
-				InputType:   domain.QuestionInputTypeSelect,
+				InputType:   contracts.QuestionInputTypeSelect,
 				Label:       "Fonte do CSV",
 				Required:    true,
 				Options:     []string{"upload", "url"},
@@ -302,7 +302,7 @@ questions := []domain.Question{
 			},
 			{
 				Slug:        "workflow-id",
-				InputType:   domain.QuestionInputTypeText,
+				InputType:   contracts.QuestionInputTypeText,
 				Label:       "ID do Workflow",
 				Required:    true,
 				ParentValue: "JSON",
@@ -482,7 +482,7 @@ func StartKafkaConsumer(pool *healthchecks.WorkerPool) {
 
 ```go
 h := helper.New(db,
-    helper.WithOnHealthCheckFailure(func(ctx context.Context, svc *domain.Service, result *domain.HealthCheckResult) error {
+    helper.WithOnHealthCheckFailure(func(ctx context.Context, svc *contracts.Service, result *contracts.HealthCheckResult) error {
         // Notificar Slack, PagerDuty, etc.
         notifySlack(fmt.Sprintf("⚠️ %s está %s: %s", svc.Name, result.Status, result.Message))
         return nil
@@ -494,7 +494,7 @@ h := helper.New(db,
 
 ```go
 h := helper.New(db,
-    helper.WithOnActionExecution(func(ctx context.Context, exec *domain.ActionExecution, result *domain.ActionResult) error {
+    helper.WithOnActionExecution(func(ctx context.Context, exec *contracts.ActionExecution, result *contracts.ActionResult) error {
         // Auditoria, logs, notificações
         audit.Log("action_executed", exec.ActionID, exec.Status)
         return nil
@@ -669,12 +669,12 @@ Retorna o detalhe de um worker específico.
 ### `helper.New(db *gorm.DB, opts ...Option) *Helper`
 Cria uma instância do Helper.
 
-### `h.RegisterService(name string, checker domain.HealthChecker) error`
+### `h.RegisterService(name string, checker contracts.HealthChecker) error`
 Registra um health checker para um serviço e **sincroniza automaticamente** no banco.
 
 **Retorna um erro se a sincronização falhar.**
 
-### `h.RegisterAction(slug, title, description string, handler domain.ActionHandler, questions []domain.Question) error`
+### `h.RegisterAction(slug, title, description string, handler contracts.ActionHandler, questions []contracts.Question) error`
 Registra uma action com suas questões e **sincroniza automaticamente** no banco.
 
 **Parâmetros:**
@@ -704,13 +704,13 @@ Registra todas as rotas no router Gin do cliente. Passa `nil` como middleware pa
 ### `h.AutoMigrate() error`
 Executa migrations de schema via GORM para todos os modelos do helper (incluindo a nova tabela `gohelper_action_services`) em uma única chamada.
 
-### `h.CheckService(ctx, name) (*domain.HealthCheckResult, error)`
+### `h.CheckService(ctx, name) (*contracts.HealthCheckResult, error)`
 Executa o health check de um serviço manualmente.
 
-### `h.CheckAll(ctx) map[string]*domain.HealthCheckResult`
+### `h.CheckAll(ctx) map[string]*contracts.HealthCheckResult`
 Executa health checks de todos os serviços registrados.
 
-### `h.ExecuteAction(ctx, slug, input) (*domain.ActionResult, error)`
+### `h.ExecuteAction(ctx, slug, input) (*contracts.ActionResult, error)`
 Executa uma action programaticamente (sem HTTP).
 
 ### `helper.NewScheduler(h *Helper, cfg SchedulerConfig) *Scheduler`
@@ -838,17 +838,17 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/caiofariavert/golang_vert_helper/internal/domain"
+	"github.com/caiofariavert/golang_vert_helper/pkg/contracts"
 	"github.com/caiofariavert/golang_vert_helper/pkg/helper"
 )
 
 // RegisterActions registra todas as actions da aplicação
 func RegisterActions(h *helper.Helper, ctx context.Context, logger *slog.Logger) error {
 	// Definir questões
-	cleanCacheQuestions := []domain.Question{
+	cleanCacheQuestions := []contracts.Question{
 		{
 			Slug:      "tipo",
-			InputType: domain.QuestionInputTypeSelect,
+			InputType: contracts.QuestionInputTypeSelect,
 			Label:     "Tipo de cache",
 			Required:  true,
 			Options:   []string{"redis", "memcached", "local"},
@@ -861,10 +861,10 @@ func RegisterActions(h *helper.Helper, ctx context.Context, logger *slog.Logger)
 		"limpar-cache",
 		"Limpar Cache",
 		"Limpa o cache do sistema",
-		func(ctx context.Context, action *domain.Action, input map[string]interface{}) (*domain.ActionResult, error) {
+		func(ctx context.Context, action *contracts.Action, input map[string]interface{}) (*contracts.ActionResult, error) {
 			tipo := input["tipo"].(string)
 			logger.Info("Limpando cache", "tipo", tipo)
-			return &domain.ActionResult{
+			return &contracts.ActionResult{
 				Success: true,
 				Message: "Cache " + tipo + " limpo",
 			}, nil
@@ -898,6 +898,7 @@ import (
 	"gorm.io/gorm"
 
 	"myapp/internal/actions"
+	"github.com/caiofariavert/golang_vert_helper/pkg/contracts"
 	healthchecks "github.com/caiofariavert/golang_vert_helper/pkg/health_checks"
 	"github.com/caiofariavert/golang_vert_helper/pkg/helper"
 )
@@ -915,7 +916,7 @@ func main() {
 	h := helper.New(db,
 		helper.WithLogger(logger),
 		helper.WithWorkerPool(pool),
-		helper.WithOnHealthCheckFailure(func(ctx context.Context, svc *domain.Service, result *domain.HealthCheckResult) error {
+		helper.WithOnHealthCheckFailure(func(ctx context.Context, svc *contracts.Service, result *contracts.HealthCheckResult) error {
 			logger.Error("serviço com falha", "service", svc.Name, "status", result.Status)
 			return nil
 		}),
