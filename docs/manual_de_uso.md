@@ -17,6 +17,7 @@ Biblioteca Go para monitoramento de saúde de serviços e execução de ações 
 9. [Callbacks](#9-callbacks)
 10. [Referência da API REST](#10-referência-da-api-rest)
 11. [Referência da API Go](#11-referência-da-api-go)
+12. [Como Rodar Migrations](#12-como-rodar-migrations)
 
 ---
 
@@ -562,6 +563,36 @@ Cria e inicia o scheduler de health checks periódicos.
 
 ### `helper.DefaultSchedulerConfig() SchedulerConfig`
 Retorna a configuração padrão (health check a cada 10 minutos).
+
+---
+
+## 12. Como Rodar Migrations
+
+As migrations SQL ficam em `migrations/` e devem ser executadas em lote, de forma automática.
+Nao rode arquivo por arquivo: o processo correto aplica todas as pendentes de uma vez.
+
+### Opcao 1: via CLI do golang-migrate (recomendado)
+
+Instale o binario uma vez:
+
+```bash
+go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+```
+
+Defina a conexao e rode o `up`:
+
+```bash
+export DATABASE_URL='postgres://usuario:senha@localhost:5432/seu_banco?sslmode=disable'
+migrate -path ./migrations -database "$DATABASE_URL" up
+```
+
+Esse comando aplica automaticamente todas as migrations pendentes em ordem.
+
+Para rollback completo (ambiente de desenvolvimento), use:
+
+```bash
+migrate -path ./migrations -database "$DATABASE_URL" down
+```
 
 ---
 

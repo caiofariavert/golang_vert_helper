@@ -19,7 +19,7 @@ type Service struct {
 
 // TableName especifica o nome da tabela
 func (Service) TableName() string {
-	return "services"
+	return "gohelper_services"
 }
 
 // ========== ServiceHealth Entity ==========
@@ -41,7 +41,7 @@ type ServiceHealth struct {
 
 // TableName especifica o nome da tabela
 func (ServiceHealth) TableName() string {
-	return "service_health"
+	return "gohelper_service_health"
 }
 
 // ========== Action Entity ==========
@@ -64,7 +64,7 @@ type Action struct {
 
 // TableName especifica o nome da tabela
 func (Action) TableName() string {
-	return "actions"
+	return "gohelper_actions"
 }
 
 // ========== Question Entity ==========
@@ -93,7 +93,7 @@ type Question struct {
 
 // TableName especifica o nome da tabela
 func (Question) TableName() string {
-	return "questions"
+	return "gohelper_questions"
 }
 
 // ========== ActionExecution Entity ==========
@@ -116,7 +116,7 @@ type ActionExecution struct {
 
 // TableName especifica o nome da tabela
 func (ActionExecution) TableName() string {
-	return "action_executions"
+	return "gohelper_action_executions"
 }
 
 // ========== Worker Entity ==========
@@ -140,7 +140,7 @@ type Worker struct {
 
 // TableName especifica o nome da tabela
 func (Worker) TableName() string {
-	return "workers"
+	return "gohelper_workers"
 }
 
 // ========== WorkerSnapshot Entity ==========
@@ -160,7 +160,7 @@ type WorkerSnapshot struct {
 
 // TableName especifica o nome da tabela
 func (WorkerSnapshot) TableName() string {
-	return "worker_snapshots"
+	return "gohelper_worker_snapshots"
 }
 
 // ========== Enums ==========
