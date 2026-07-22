@@ -1,11 +1,11 @@
-package integration
-package repository
+package repository_test
 
 import (
 	"context"
 	"testing"
 
 	"github.com/vert/golang_vert_helper/internal/domain"
+	. "github.com/vert/golang_vert_helper/internal/repository"
 	"github.com/vert/golang_vert_helper/internal/testdb"
 )
 
@@ -164,10 +164,10 @@ func TestActionRepository_Create(t *testing.T) {
 	service := db.CreateService(ctx, "Test Service")
 
 	action := &domain.Action{
-		ServiceID:   service.ID,
-		Slug:        "test-action",
-		Title:       "Test Action",
-		Active:      true,
+		ServiceID: service.ID,
+		Slug:      "test-action",
+		Title:     "Test Action",
+		Active:    true,
 	}
 
 	if err := actionRepo.Create(ctx, action); err != nil {

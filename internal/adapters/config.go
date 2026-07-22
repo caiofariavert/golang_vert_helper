@@ -1,5 +1,4 @@
 package adapters
-package config
 
 import (
 	"context"

@@ -1,0 +1,174 @@
+package adapters
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/vert/golang_vert_helper/internal/domain"
+	"github.com/vert/golang_vert_helper/internal/services"
+	healthchecks "github.com/vert/golang_vert_helper/pkg/health_checks"
+)
+
+// Handlers agrupa os handlers HTTP da biblioteca
+type Handlers struct {
+	healthService *services.HealthService
+	actionService *services.ActionService
+	workerPool    *healthchecks.WorkerPool
+}
+
+// NewHandlers cria os handlers com os serviços necessários
+func NewHandlers(
+	healthService *services.HealthService,
+	actionService *services.ActionService,
+	workerPool *healthchecks.WorkerPool,
+) *Handlers {
+	return &Handlers{
+		healthService: healthService,
+		actionService: actionService,
+		workerPool:    workerPool,
+	}
+}
+
+// ========== Health Check Handlers ==========
+
+// GetHealthcare retorna o status de saúde de todos os serviços
+func (h *Handlers) GetHealthcare(c *gin.Context) {
+	statuses, err := h.healthService.GetAllLatestStatuses(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	overall := h.healthService.OverallStatus(c.Request.Context())
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":   overall,
+		"services": statuses,
+	})
+}
+
+// GetServiceHealth retorna o status de saúde de um serviço específico
+func (h *Handlers) GetServiceHealth(c *gin.Context) {
+	name := c.Param("name")
+
+	result, err := h.healthService.GetLatestStatus(c.Request.Context(), name)
+	if err != nil {
+		if err == domain.ErrServiceNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// RefreshServiceHealth força a execução do health check de um serviço
+func (h *Handlers) RefreshServiceHealth(c *gin.Context) {
+	name := c.Param("name")
+
+	result, err := h.healthService.CheckService(c.Request.Context(), name)
+	if err != nil {
+		if err == domain.ErrCheckerNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "no checker registered for this service"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// ========== Action Handlers ==========
+
+// ListActions retorna as actions disponíveis de um serviço
+func (h *Handlers) ListActions(c *gin.Context) {
+	serviceID := c.Query("service_id")
+	if serviceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "service_id query param is required"})
+		return
+	}
+
+	actions, err := h.actionService.ListActions(c.Request.Context(), serviceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, actions)
+}
+
+// GetAction retorna uma action pelo slug
+func (h *Handlers) GetAction(c *gin.Context) {
+	slug := c.Param("slug")
+
+	action, err := h.actionService.GetAction(c.Request.Context(), slug)
+	if err != nil {
+		if err == domain.ErrActionNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "action not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, action)
+}
+
+// ExecuteAction executa uma action com o input do request body
+func (h *Handlers) ExecuteAction(c *gin.Context) {
+	slug := c.Param("slug")
+
+	var input map[string]interface{}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	result, err := h.actionService.Execute(c.Request.Context(), slug, input)
+	if err != nil {
+		switch err {
+		case domain.ErrActionNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "action not found"})
+		case domain.ErrInvalidResponses:
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// ========== Worker Handlers ==========
+
+// ListWorkers retorna todos os workers registrados no pool
+func (h *Handlers) ListWorkers(c *gin.Context) {
+	if h.workerPool == nil {
+		c.JSON(http.StatusOK, []interface{}{})
+		return
+	}
+	c.JSON(http.StatusOK, h.workerPool.GetAll())
+}
+
+// GetWorker retorna um worker específico pelo ID
+func (h *Handlers) GetWorker(c *gin.Context) {
+	id := c.Param("id")
+
+	if h.workerPool == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "worker not found"})
+		return
+	}
+
+	worker, ok := h.workerPool.GetByID(id)
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{"error": "worker not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, worker)
+}

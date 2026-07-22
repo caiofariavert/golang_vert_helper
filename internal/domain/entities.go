@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"context"
 	"database/sql"
 	"time"
 )
@@ -49,15 +48,15 @@ func (ServiceHealth) TableName() string {
 
 // Action representa uma ação que pode ser executada no contexto de uma questão
 type Action struct {
-	ID           string          `gorm:"primaryKey;type:uuid"`
-	ServiceID    string          `gorm:"type:uuid;not null;index"`
-	Slug         string          `gorm:"type:varchar(255);not null;uniqueIndex"`
-	Title        string          `gorm:"type:varchar(255);not null"`
-	Description  string          `gorm:"type:text"`
-	Active       bool            `gorm:"default:true;index"`
-	Questions    []Question      `gorm:"many2many:action_questions;"`
-	CreatedAt    time.Time       `gorm:"autoCreateTime"`
-	UpdatedAt    time.Time       `gorm:"autoUpdateTime"`
+	ID          string     `gorm:"primaryKey;type:uuid"`
+	ServiceID   string     `gorm:"type:uuid;not null;index"`
+	Slug        string     `gorm:"type:varchar(255);not null;uniqueIndex"`
+	Title       string     `gorm:"type:varchar(255);not null"`
+	Description string     `gorm:"type:text"`
+	Active      bool       `gorm:"default:true;index"`
+	Questions   []Question `gorm:"many2many:action_questions;"`
+	CreatedAt   time.Time  `gorm:"autoCreateTime"`
+	UpdatedAt   time.Time  `gorm:"autoUpdateTime"`
 
 	// Foreign key
 	Service *Service `gorm:"foreignKey:ServiceID;references:ID;constraint:OnDelete:CASCADE"`
@@ -72,19 +71,19 @@ func (Action) TableName() string {
 
 // Question represents a form question that belongs to an action
 type Question struct {
-	ID           string           `gorm:"primaryKey;type:uuid"`
-	ActionID     string           `gorm:"type:uuid;not null;index"`
-	Slug         string           `gorm:"type:varchar(255);not null;uniqueIndex:idx_action_question_slug"`
-	InputType    QuestionInputType `gorm:"type:varchar(50);not null"`
-	Label        string           `gorm:"type:varchar(255);not null"`
-	Placeholder  string           `gorm:"type:varchar(255)"`
-	Required     bool             `gorm:"default:false"`
-	Options      string           `gorm:"type:json"` // JSON array of options
-	ParentID     *string          `gorm:"type:uuid;index"`
-	ParentValue  string           `gorm:"type:varchar(255)"`
-	Order        int              `gorm:"default:0"`
-	CreatedAt    time.Time        `gorm:"autoCreateTime"`
-	UpdatedAt    time.Time        `gorm:"autoUpdateTime"`
+	ID          string            `gorm:"primaryKey;type:uuid"`
+	ActionID    string            `gorm:"type:uuid;not null;index"`
+	Slug        string            `gorm:"type:varchar(255);not null;uniqueIndex:idx_action_question_slug"`
+	InputType   QuestionInputType `gorm:"type:varchar(50);not null"`
+	Label       string            `gorm:"type:varchar(255);not null"`
+	Placeholder string            `gorm:"type:varchar(255)"`
+	Required    bool              `gorm:"default:false"`
+	Options     string            `gorm:"type:json"` // JSON array of options
+	ParentID    *string           `gorm:"type:uuid;index"`
+	ParentValue string            `gorm:"type:varchar(255)"`
+	Order       int               `gorm:"default:0"`
+	CreatedAt   time.Time         `gorm:"autoCreateTime"`
+	UpdatedAt   time.Time         `gorm:"autoUpdateTime"`
 
 	// Foreign keys
 	Action   *Action    `gorm:"foreignKey:ActionID;references:ID;constraint:OnDelete:CASCADE"`
@@ -216,9 +215,9 @@ const (
 
 // HealthCheckResult representa o resultado de um health check
 type HealthCheckResult struct {
-	Status    HealthStatus  `json:"status"`
-	Message   string        `json:"message,omitempty"`
-	Timestamp time.Time     `json:"timestamp"`
+	Status    HealthStatus           `json:"status"`
+	Message   string                 `json:"message,omitempty"`
+	Timestamp time.Time              `json:"timestamp"`
 	Data      map[string]interface{} `json:"data,omitempty"`
 }
 

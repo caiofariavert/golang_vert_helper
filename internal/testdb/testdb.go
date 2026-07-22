@@ -1,5 +1,4 @@
 package testdb
-package testdb
 
 import (
 	"context"
@@ -116,10 +115,10 @@ func (tdb *TestDB) CreateService(ctx context.Context, name string) *domain.Servi
 // CreateAction creates a test action
 func (tdb *TestDB) CreateAction(ctx context.Context, serviceID, slug, title string) *domain.Action {
 	action := &domain.Action{
-		ServiceID:   serviceID,
-		Slug:        slug,
-		Title:       title,
-		Active:      true,
+		ServiceID: serviceID,
+		Slug:      slug,
+		Title:     title,
+		Active:    true,
 	}
 
 	if err := tdb.DB.WithContext(ctx).Create(action).Error; err != nil {

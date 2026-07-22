@@ -1,5 +1,4 @@
 package domain
-package domain
 
 import "errors"
 
@@ -9,14 +8,14 @@ var (
 	ErrServiceExists   = errors.New("service already exists")
 
 	// Action errors
-	ErrActionNotFound    = errors.New("action not found")
-	ErrActionExists      = errors.New("action already exists")
-	ErrActionValidation  = errors.New("action validation failed")
-	ErrInvalidResponses  = errors.New("invalid action responses")
+	ErrActionNotFound   = errors.New("action not found")
+	ErrActionExists     = errors.New("action already exists")
+	ErrActionValidation = errors.New("action validation failed")
+	ErrInvalidResponses = errors.New("invalid action responses")
 
 	// Question errors
-	ErrQuestionNotFound  = errors.New("question not found")
-	ErrInvalidQuestions  = errors.New("invalid questions structure")
+	ErrQuestionNotFound = errors.New("question not found")
+	ErrInvalidQuestions = errors.New("invalid questions structure")
 
 	// Health check errors
 	ErrHealthCheckFailed = errors.New("health check failed")
