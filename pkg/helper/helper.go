@@ -116,6 +116,19 @@ func (h *Helper) Sync(ctx context.Context, defs []services.ServiceDefinition) er
 	return h.syncService.Sync(ctx, defs)
 }
 
+// AutoMigrate executa as migrations do schema via GORM para todos os modelos do helper
+func (h *Helper) AutoMigrate() error {
+	return h.db.AutoMigrate(
+		&domain.Service{},
+		&domain.ServiceHealth{},
+		&domain.Action{},
+		&domain.Question{},
+		&domain.ActionExecution{},
+		&domain.Worker{},
+		&domain.WorkerSnapshot{},
+	)
+}
+
 // CheckService executa o health check de um serviço pelo nome
 func (h *Helper) CheckService(ctx context.Context, name string) (*domain.HealthCheckResult, error) {
 	return h.healthService.CheckService(ctx, name)

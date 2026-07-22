@@ -549,6 +549,9 @@ Registra todas as rotas no router Gin do cliente. Passa `nil` como middleware pa
 ### `h.Sync(ctx context.Context, defs []services.ServiceDefinition) error`
 Sincroniza definições de serviços e actions com o banco.
 
+### `h.AutoMigrate() error`
+Executa migrations de schema via GORM para todos os modelos do helper em uma unica chamada.
+
 ### `h.CheckService(ctx, name) (*domain.HealthCheckResult, error)`
 Executa o health check de um serviço manualmente.
 
@@ -568,31 +571,34 @@ Retorna a configuração padrão (health check a cada 10 minutos).
 
 ## 12. Como Rodar Migrations
 
-As migrations SQL ficam em `migrations/` e devem ser executadas em lote, de forma automática.
-Nao rode arquivo por arquivo: o processo correto aplica todas as pendentes de uma vez.
+O schema do helper deve ser aplicado via GORM `AutoMigrate`, em lote e de forma automatica.
+Nao rode alteracoes manualmente tabela por tabela.
 
-### Opcao 1: via CLI do golang-migrate (recomendado)
+### Via codigo com GORM (recomendado)
 
-Instale o binario uma vez:
+Use o helper para rodar `AutoMigrate` na inicializacao da aplicacao:
 
-```bash
-go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+```go
+h := helper.New(db)
+
+if err := h.AutoMigrate(); err != nil {
+    log.Fatalf("falha ao executar migrations: %v", err)
+}
 ```
 
-Defina a conexao e rode o `up`:
+Esse metodo aplica automaticamente o schema de todos os modelos do pacote (`services`, `service_health`, `actions`, `questions`, `action_executions`, `workers` e `worker_snapshots`) em uma unica chamada.
 
-```bash
-export DATABASE_URL='postgres://usuario:senha@localhost:5432/seu_banco?sslmode=disable'
-migrate -path ./migrations -database "$DATABASE_URL" up
+Se voce inicializa via adapter interno, o processo ja e automatico:
+
+```go
+initializer, err := adapters.NewApplicationInitializer(config)
+if err != nil {
+    return err
+}
+defer initializer.Close()
 ```
 
-Esse comando aplica automaticamente todas as migrations pendentes em ordem.
-
-Para rollback completo (ambiente de desenvolvimento), use:
-
-```bash
-migrate -path ./migrations -database "$DATABASE_URL" down
-```
+Nesse fluxo, `NewApplicationInitializer` chama `AutoMigrate()` internamente.
 
 ---
 
