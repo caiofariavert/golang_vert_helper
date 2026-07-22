@@ -516,16 +516,21 @@ Retorna o status geral de todos os serviços monitorados.
 **Response 200:**
 ```json
 {
-  "status": "healthy",
-  "services": [
-    {
-      "id": "uuid",
-      "service_id": "uuid",
-      "status": "healthy",
-      "message": "PostgreSQL connection is healthy",
-      "checked_at": "2026-07-21T10:00:00Z"
-    }
-  ]
+  "postgres": {
+    "status": "healthy",
+    "message": "PostgreSQL connection is healthy",
+    "last_updated": "2026-07-21T10:00:00Z"
+  },
+  "s3": {
+    "status": "unhealthy",
+    "message": "Connection timeout",
+    "last_updated": "2026-07-21T10:05:00Z"
+  },
+  "kafka": {
+    "status": "unknown",
+    "message": "Service not configured",
+    "last_updated": null
+  }
 }
 ```
 

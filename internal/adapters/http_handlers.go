@@ -40,12 +40,20 @@ func (h *Handlers) GetHealthcare(c *gin.Context) {
 		return
 	}
 
-	overall := h.healthService.OverallStatus(c.Request.Context())
+	// Transformar array em mapa com service names como chaves
+	response := make(map[string]gin.H)
+	for _, status := range statuses {
+		if status.Service == nil {
+			continue // Skip se não conseguir carregar o serviço
+		}
+		response[status.Service.Name] = gin.H{
+			"status":       string(status.Status),
+			"message":      status.Message,
+			"last_updated": status.CheckedAt,
+		}
+	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"status":   overall,
-		"services": statuses,
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 // GetServiceHealth retorna o status de saúde de um serviço específico

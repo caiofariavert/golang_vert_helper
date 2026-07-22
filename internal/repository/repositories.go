@@ -152,6 +152,7 @@ func (r *ServiceHealthRepository) ListByServiceID(ctx context.Context, serviceID
 func (r *ServiceHealthRepository) ListAll(ctx context.Context) ([]*domain.ServiceHealth, error) {
 	var healths []*domain.ServiceHealth
 	result := r.db.WithContext(ctx).
+		Preload("Service").
 		Order("checked_at DESC").
 		Find(&healths)
 	if result.Error != nil {
