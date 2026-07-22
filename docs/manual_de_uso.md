@@ -18,6 +18,7 @@ Biblioteca Go para monitoramento de saúde de serviços e execução de ações 
 10. [Referência da API REST](#10-referência-da-api-rest)
 11. [Referência da API Go](#11-referência-da-api-go)
 12. [Como Rodar Migrations](#12-como-rodar-migrations)
+13. [Nginx para Consultar Saude](#13-nginx-para-consultar-saude)
 
 ---
 
@@ -52,19 +53,19 @@ h := helper.New(db)
 ```go
 import (
     "log/slog"
+    "github.com/caiofariavert/golang_vert_helper/pkg/contracts"
     "github.com/caiofariavert/golang_vert_helper/pkg/helper"
-    "github.com/caiofariavert/golang_vert_helper/internal/domain"
 )
 
 h := helper.New(db,
     helper.WithLogger(slog.Default()),
 
-    helper.WithOnHealthCheckFailure(func(ctx context.Context, svc *domain.Service, result *domain.HealthCheckResult) error {
+    helper.WithOnHealthCheckFailure(func(ctx context.Context, svc *contracts.Service, result *contracts.HealthCheckResult) error {
         log.Printf("ALERTA: serviço %s está %s", svc.Name, result.Status)
         return nil
     }),
 
-    helper.WithOnActionExecution(func(ctx context.Context, exec *domain.ActionExecution, result *domain.ActionResult) error {
+    helper.WithOnActionExecution(func(ctx context.Context, exec *contracts.ActionExecution, result *contracts.ActionResult) error {
         log.Printf("Action executada: status=%s", exec.Status)
         return nil
     }),
@@ -108,23 +109,23 @@ h.RegisterService("s3", healthchecks.NewS3Checker(healthchecks.S3Config{
 
 ### Checker customizado
 
-Implemente a interface `domain.HealthChecker`:
+Implemente a interface `contracts.HealthChecker`:
 
 ```go
 type RedisChecker struct {
     client *redis.Client
 }
 
-func (c *RedisChecker) Check(ctx context.Context) (*domain.HealthCheckResult, error) {
+func (c *RedisChecker) Check(ctx context.Context) (*contracts.HealthCheckResult, error) {
     if err := c.client.Ping(ctx).Err(); err != nil {
-        return &domain.HealthCheckResult{
-            Status:    domain.HealthStatusUnhealthy,
+        return &contracts.HealthCheckResult{
+            Status:    contracts.HealthStatusUnhealthy,
             Message:   err.Error(),
             Timestamp: time.Now(),
         }, nil
     }
-    return &domain.HealthCheckResult{
-        Status:    domain.HealthStatusHealthy,
+    return &contracts.HealthCheckResult{
+        Status:    contracts.HealthStatusHealthy,
         Message:   "Redis OK",
         Timestamp: time.Now(),
     }, nil
@@ -138,10 +139,10 @@ h.RegisterService("redis", &RedisChecker{client: redisClient})
 
 | Constante | Valor | Significado |
 |-----------|-------|-------------|
-| `domain.HealthStatusHealthy` | `"healthy"` | Serviço funcionando normalmente |
-| `domain.HealthStatusDegraded` | `"degraded"` | Funcionando com degradação |
-| `domain.HealthStatusUnhealthy` | `"unhealthy"` | Serviço com falha |
-| `domain.HealthStatusUnknown` | `"unknown"` | Estado desconhecido |
+| `contracts.HealthStatusHealthy` | `"healthy"` | Serviço funcionando normalmente |
+| `contracts.HealthStatusDegraded` | `"degraded"` | Funcionando com degradação |
+| `contracts.HealthStatusUnhealthy` | `"unhealthy"` | Serviço com falha |
+| `contracts.HealthStatusUnknown` | `"unknown"` | Estado desconhecido |
 
 ---
 
@@ -152,16 +153,16 @@ Uma **action** representa uma operação interativa — com formulário de entra
 ```go
 h.RegisterAction("reiniciar-servico", func(
     ctx context.Context,
-    action *domain.Action,
+    action *contracts.Action,
     input map[string]interface{},
-) (*domain.ActionResult, error) {
+) (*contracts.ActionResult, error) {
     servico := input["servico"].(string)
     motivo  := input["motivo"].(string)
 
     // Sua lógica aqui
     log.Printf("Reiniciando %s — motivo: %s", servico, motivo)
 
-    return &domain.ActionResult{
+    return &contracts.ActionResult{
         Success: true,
         Message: "Serviço reiniciado com sucesso",
         Data:    map[string]interface{}{"servico": servico},
@@ -178,21 +179,21 @@ O `input` é um `map[string]interface{}` com as respostas do usuário, onde a ch
 Use `Sync` para garantir que as definições de serviços e actions no seu código estejam persistidas no banco. Normalmente chamado na inicialização da aplicação.
 
 ```go
-import "github.com/caiofariavert/golang_vert_helper/internal/services"
+import "github.com/caiofariavert/golang_vert_helper/pkg/contracts"
 
-err := h.Sync(ctx, []services.ServiceDefinition{
+err := h.Sync(ctx, []contracts.ServiceDefinition{
     {
         Name:        "meu-sistema",
         Description: "Sistema principal",
-        Actions: []services.ActionDefinition{
+        Actions: []contracts.ActionDefinition{
             {
                 Slug:        "reiniciar-servico",
                 Title:       "Reiniciar Serviço",
                 Description: "Reinicia um serviço específico",
-                Questions: []services.QuestionDefinition{
+                Questions: []contracts.QuestionDefinition{
                     {
                         Slug:      "servico",
-                        InputType: domain.QuestionInputTypeSelect,
+                        InputType: contracts.QuestionInputTypeSelect,
                         Label:     "Qual serviço?",
                         Required:  true,
                         Options:   []string{"api", "worker", "scheduler"},
@@ -200,7 +201,7 @@ err := h.Sync(ctx, []services.ServiceDefinition{
                     },
                     {
                         Slug:      "motivo",
-                        InputType: domain.QuestionInputTypeTextarea,
+                        InputType: contracts.QuestionInputTypeTextarea,
                         Label:     "Motivo do reinício",
                         Required:  true,
                         Order:     2,
@@ -218,15 +219,15 @@ err := h.Sync(ctx, []services.ServiceDefinition{
 // A questão "ambiente-custom" só aparece se "ambiente" == "outro"
 {
     Slug:        "ambiente",
-    InputType:   domain.QuestionInputTypeSelect,
+    InputType:   contracts.QuestionInputTypeSelect,
     Label:       "Ambiente",
     Required:    true,
     Options:     []string{"producao", "staging", "outro"},
     Order:       1,
-    Children: []services.QuestionDefinition{
+    Children: []contracts.QuestionDefinition{
         {
             Slug:        "ambiente-custom",
-            InputType:   domain.QuestionInputTypeText,
+            InputType:   contracts.QuestionInputTypeText,
             Label:       "Especifique o ambiente",
             Required:    true,
             ParentSlug:  "ambiente",
@@ -602,6 +603,71 @@ Nesse fluxo, `NewApplicationInitializer` chama `AutoMigrate()` internamente.
 
 ---
 
+## 13. Nginx para Consultar Saude
+
+O endpoint publico de saude da aplicacao e servido pelo Nginx em:
+
+- `GET /api/helper/v1/app-health/`
+
+Esse endpoint retorna o arquivo `/app/health.json`, atualizado pelo script `health_check.sh`.
+O script consulta internamente `GET /api/helper/v1/healthcare/` e grava:
+
+- `status`: `stable` quando o helper responde
+- `status`: `failed` quando o helper nao responde
+
+### Fluxo de funcionamento
+
+1. A aplicacao sobe e expõe o helper em `http://127.0.0.1:8006`.
+2. O script `health_check.sh` roda em background no container (inicial e periodico).
+3. O script gera/atualiza `/app/health.json`.
+4. O Nginx serve esse arquivo em `/api/helper/v1/app-health/`.
+
+### Configuracao Nginx no projeto
+
+- Desenvolvimento: `docker_assets/nginx.dev.conf` (porta `8005`)
+- Producao: `docker_assets/nginx.prd.conf` (porta `8080`)
+
+Nos dois cenarios:
+
+- `/api/helper/v1/app-health` redireciona para `/api/helper/v1/app-health/`
+- `/api/helper/v1/app-health/` usa `try_files /health.json =503`
+- Demais rotas sao encaminhadas para `http://127.0.0.1:8006`
+
+### Como aplicar no container
+
+Os Dockerfiles ja aplicam a configuracao automaticamente:
+
+- `Dockerfile-dev` copia `docker_assets/nginx.dev.conf` para `/etc/nginx/conf.d/default.conf`
+- `Dockerfile-prod` copia `docker_assets/nginx.prd.conf` para `/etc/nginx/conf.d/default.conf`
+- Ambos copiam e executam `/app/health_check.sh`
+
+### Como consultar saude
+
+Em desenvolvimento:
+
+```bash
+curl -fsS http://localhost:8005/api/helper/v1/app-health/
+```
+
+Em producao:
+
+```bash
+curl -fsS http://localhost:8080/api/helper/v1/app-health/
+```
+
+Exemplo de resposta:
+
+```json
+{
+    "status": "stable",
+    "timestamp": "2026-07-22T10:30:00-03:00"
+}
+```
+
+Se `health.json` ainda nao existir, o Nginx responde `503` ate o primeiro ciclo do `health_check.sh`.
+
+---
+
 ## Exemplo completo de integração
 
 ```go
@@ -616,8 +682,7 @@ import (
     "gorm.io/driver/postgres"
     "gorm.io/gorm"
 
-    "github.com/caiofariavert/golang_vert_helper/internal/domain"
-    "github.com/caiofariavert/golang_vert_helper/internal/services"
+    "github.com/caiofariavert/golang_vert_helper/pkg/contracts"
     healthchecks "github.com/caiofariavert/golang_vert_helper/pkg/health_checks"
     "github.com/caiofariavert/golang_vert_helper/pkg/helper"
 )
@@ -633,7 +698,7 @@ func main() {
     h := helper.New(db,
         helper.WithLogger(slog.Default()),
         helper.WithWorkerPool(pool),
-        helper.WithOnHealthCheckFailure(func(ctx context.Context, svc *domain.Service, result *domain.HealthCheckResult) error {
+        helper.WithOnHealthCheckFailure(func(ctx context.Context, svc *contracts.Service, result *contracts.HealthCheckResult) error {
             slog.Error("serviço com falha", "service", svc.Name, "status", result.Status)
             return nil
         }),
@@ -643,25 +708,25 @@ func main() {
     h.RegisterService("postgres", healthchecks.NewGormPostgresChecker(db))
 
     // Registrar actions
-    h.RegisterAction("limpar-cache", func(ctx context.Context, action *domain.Action, input map[string]interface{}) (*domain.ActionResult, error) {
+    h.RegisterAction("limpar-cache", func(ctx context.Context, action *contracts.Action, input map[string]interface{}) (*contracts.ActionResult, error) {
         tipo := input["tipo"].(string)
         // ... lógica de limpeza
-        return &domain.ActionResult{Success: true, Message: "Cache " + tipo + " limpo"}, nil
+        return &contracts.ActionResult{Success: true, Message: "Cache " + tipo + " limpo"}, nil
     })
 
     // Sincronizar definições com o banco
-    h.Sync(context.Background(), []services.ServiceDefinition{
+    h.Sync(context.Background(), []contracts.ServiceDefinition{
         {
             Name:        "meu-sistema",
             Description: "Backend principal",
-            Actions: []services.ActionDefinition{
+            Actions: []contracts.ActionDefinition{
                 {
                     Slug:  "limpar-cache",
                     Title: "Limpar Cache",
-                    Questions: []services.QuestionDefinition{
+                    Questions: []contracts.QuestionDefinition{
                         {
                             Slug:      "tipo",
-                            InputType: domain.QuestionInputTypeSelect,
+                            InputType: contracts.QuestionInputTypeSelect,
                             Label:     "Tipo de cache",
                             Required:  true,
                             Options:   []string{"redis", "memcached", "local"},
