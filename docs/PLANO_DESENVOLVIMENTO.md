@@ -290,7 +290,7 @@ package main
 import (
   "context"
   "log"
-  "github.com/vert/golang_vert_helper/pkg/helper"
+  "github.com/caiofariavert/golang_vert_helper/pkg/helper"
 )
 
 func main() {

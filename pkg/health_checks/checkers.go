@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vert/golang_vert_helper/internal/domain"
+	"github.com/caiofariavert/golang_vert_helper/internal/domain"
 )
 
 // PostgresChecker verifica a conexão com o PostgreSQL

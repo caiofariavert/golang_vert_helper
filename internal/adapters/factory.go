@@ -3,8 +3,8 @@ package adapters
 import (
 	"gorm.io/gorm"
 
-	"github.com/vert/golang_vert_helper/internal/domain"
-	"github.com/vert/golang_vert_helper/internal/repository"
+	"github.com/caiofariavert/golang_vert_helper/internal/domain"
+	"github.com/caiofariavert/golang_vert_helper/internal/repository"
 )
 
 // RepositoryFactory creates all repositories from a GORM connection

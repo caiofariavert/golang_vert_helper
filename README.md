@@ -9,7 +9,7 @@ Biblioteca Go para monitoramento de saúde de serviços e execução de ações 
 ## Instalação rápida
 
 ```bash
-go get github.com/vert/golang_vert_helper
+go get github.com/caiofariavert/golang_vert_helper
 ```
 
 ## Exemplo mínimo
@@ -17,8 +17,8 @@ go get github.com/vert/golang_vert_helper
 ```go
 import (
     "github.com/gin-gonic/gin"
-    "github.com/vert/golang_vert_helper/pkg/helper"
-    healthchecks "github.com/vert/golang_vert_helper/pkg/health_checks"
+    "github.com/caiofariavert/golang_vert_helper/pkg/helper"
+    healthchecks "github.com/caiofariavert/golang_vert_helper/pkg/health_checks"
 )
 
 h := helper.New(db)

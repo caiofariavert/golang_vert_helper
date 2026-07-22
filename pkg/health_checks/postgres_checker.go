@@ -7,7 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/vert/golang_vert_helper/internal/domain"
+	"github.com/caiofariavert/golang_vert_helper/internal/domain"
 )
 
 // GormPostgresChecker verifica a conexão com o banco via instância GORM existente

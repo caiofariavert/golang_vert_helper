@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"github.com/vert/golang_vert_helper/internal/domain"
+	"github.com/caiofariavert/golang_vert_helper/internal/domain"
 )
 
 // Config holds the configuration for the Vert Helper

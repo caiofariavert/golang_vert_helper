@@ -5,9 +5,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/vert/golang_vert_helper/internal/domain"
-	"github.com/vert/golang_vert_helper/internal/services"
-	healthchecks "github.com/vert/golang_vert_helper/pkg/health_checks"
+	"github.com/caiofariavert/golang_vert_helper/internal/domain"
+	"github.com/caiofariavert/golang_vert_helper/internal/services"
+	healthchecks "github.com/caiofariavert/golang_vert_helper/pkg/health_checks"
 )
 
 // Handlers agrupa os handlers HTTP da biblioteca

@@ -23,7 +23,7 @@ Biblioteca Go para monitoramento de saúde de serviços e execução de ações 
 ## 1. Instalação
 
 ```bash
-go get github.com/vert/golang_vert_helper
+go get github.com/caiofariavert/golang_vert_helper
 ```
 
 **Pré-requisitos:**
@@ -39,7 +39,7 @@ A biblioteca recebe a conexão GORM que **você já possui** — não cria uma n
 
 ```go
 import (
-    "github.com/vert/golang_vert_helper/pkg/helper"
+    "github.com/caiofariavert/golang_vert_helper/pkg/helper"
 )
 
 // db é sua conexão *gorm.DB existente
@@ -51,8 +51,8 @@ h := helper.New(db)
 ```go
 import (
     "log/slog"
-    "github.com/vert/golang_vert_helper/pkg/helper"
-    "github.com/vert/golang_vert_helper/internal/domain"
+    "github.com/caiofariavert/golang_vert_helper/pkg/helper"
+    "github.com/caiofariavert/golang_vert_helper/internal/domain"
 )
 
 h := helper.New(db,
@@ -79,7 +79,7 @@ Um **serviço** é qualquer dependência que você quer monitorar. Você impleme
 ### Checkers prontos
 
 ```go
-import healthchecks "github.com/vert/golang_vert_helper/pkg/health_checks"
+import healthchecks "github.com/caiofariavert/golang_vert_helper/pkg/health_checks"
 
 // Verifica a conexão com o PostgreSQL via GORM
 h.RegisterService("postgres", healthchecks.NewGormPostgresChecker(db))
@@ -177,7 +177,7 @@ O `input` é um `map[string]interface{}` com as respostas do usuário, onde a ch
 Use `Sync` para garantir que as definições de serviços e actions no seu código estejam persistidas no banco. Normalmente chamado na inicialização da aplicação.
 
 ```go
-import "github.com/vert/golang_vert_helper/internal/services"
+import "github.com/caiofariavert/golang_vert_helper/internal/services"
 
 err := h.Sync(ctx, []services.ServiceDefinition{
     {
@@ -300,7 +300,7 @@ O `WorkerPool` permite registrar goroutines/jobs e monitorar seu estado em tempo
 ### Setup
 
 ```go
-import healthchecks "github.com/vert/golang_vert_helper/pkg/health_checks"
+import healthchecks "github.com/caiofariavert/golang_vert_helper/pkg/health_checks"
 
 pool := healthchecks.NewWorkerPool()
 
@@ -579,10 +579,10 @@ import (
     "gorm.io/driver/postgres"
     "gorm.io/gorm"
 
-    "github.com/vert/golang_vert_helper/internal/domain"
-    "github.com/vert/golang_vert_helper/internal/services"
-    healthchecks "github.com/vert/golang_vert_helper/pkg/health_checks"
-    "github.com/vert/golang_vert_helper/pkg/helper"
+    "github.com/caiofariavert/golang_vert_helper/internal/domain"
+    "github.com/caiofariavert/golang_vert_helper/internal/services"
+    healthchecks "github.com/caiofariavert/golang_vert_helper/pkg/health_checks"
+    "github.com/caiofariavert/golang_vert_helper/pkg/helper"
 )
 
 func main() {

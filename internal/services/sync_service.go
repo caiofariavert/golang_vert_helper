@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/vert/golang_vert_helper/internal/domain"
+	"github.com/caiofariavert/golang_vert_helper/internal/domain"
 )
 
 // SyncService sincroniza as definições de serviços e actions do código com o banco
