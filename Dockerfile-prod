@@ -75,4 +75,4 @@ COPY --from=builder --chown=nonroot:nonroot /build/config/ /app/config/
 
 EXPOSE 8080
 
-ENTRYPOINT ["bash", "-c", "(sleep 60; bash /app/health_check.sh || true; while true; do sleep 600; bash /app/health_check.sh || true; done) & nginx && /app/app_bin"]
+CMD ["bash", "-lc", "(sleep 60; bash /app/health_check.sh || true; while true; do sleep 600; bash /app/health_check.sh || true; done) & nginx & /app/app_bin"]

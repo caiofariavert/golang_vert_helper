@@ -62,4 +62,4 @@ RUN go mod download \
 EXPOSE 8005 2345
 
 
-ENTRYPOINT ["bash", "-c", "(sleep 60; bash /app/health_check.sh || true; while true; do sleep 600; bash /app/health_check.sh || true; done) & nginx && /go/bin/air"]
+CMD ["bash", "-lc", "(sleep 60; bash /app/health_check.sh || true; while true; do sleep 600; bash /app/health_check.sh || true; done) & nginx -g 'daemon off;' & /go/bin/air"]
