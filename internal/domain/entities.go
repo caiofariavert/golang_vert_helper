@@ -205,10 +205,10 @@ func (AuthUser) TableName() string {
 type HealthStatus string
 
 const (
-	HealthStatusHealthy   HealthStatus = "healthy"
-	HealthStatusDegraded  HealthStatus = "degraded"
-	HealthStatusUnhealthy HealthStatus = "unhealthy"
-	HealthStatusUnknown   HealthStatus = "unknown"
+	HealthStatusHealthy   HealthStatus = "OK"
+	HealthStatusDegraded  HealthStatus = "FAILED"
+	HealthStatusUnhealthy HealthStatus = "FAILED"
+	HealthStatusUnknown   HealthStatus = "UNKNOWN"
 )
 
 // QuestionInputType representa o tipo de input de uma questão
