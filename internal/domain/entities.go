@@ -180,6 +180,25 @@ func (WorkerSnapshot) TableName() string {
 	return "gohelper_worker_snapshots"
 }
 
+// ========== AuthUser Entity ==========
+
+// AuthUser representa o usuario de autenticacao das rotas HTTP do helper
+type AuthUser struct {
+	ID           string    `gorm:"primaryKey;type:uuid"`
+	Email        string    `gorm:"type:varchar(255);not null;uniqueIndex"`
+	PasswordHash string    `gorm:"column:password_hash;type:varchar(255);not null" json:"password,omitempty"`
+	Name         string    `gorm:"type:varchar(255);not null"`
+	IsSuperuser  bool      `gorm:"default:false;index"`
+	Active       bool      `gorm:"default:true;index"`
+	CreatedAt    time.Time `gorm:"autoCreateTime"`
+	UpdatedAt    time.Time `gorm:"autoUpdateTime"`
+}
+
+// TableName especifica o nome da tabela
+func (AuthUser) TableName() string {
+	return "gohelper_auth_users"
+}
+
 // ========== Enums ==========
 
 // HealthStatus representa o status de saúde de um serviço

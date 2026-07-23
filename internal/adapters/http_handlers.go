@@ -15,6 +15,7 @@ import (
 type Handlers struct {
 	healthService *services.HealthService
 	actionService *services.ActionService
+	authService   *services.AuthService
 	workerPool    *healthchecks.WorkerPool
 }
 
@@ -22,13 +23,52 @@ type Handlers struct {
 func NewHandlers(
 	healthService *services.HealthService,
 	actionService *services.ActionService,
+	authService *services.AuthService,
 	workerPool *healthchecks.WorkerPool,
 ) *Handlers {
 	return &Handlers{
 		healthService: healthService,
 		actionService: actionService,
+		authService:   authService,
 		workerPool:    workerPool,
 	}
+}
+
+type authLoginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
+
+// AuthLogin autentica usuario e retorna um token JWT.
+func (h *Handlers) AuthLogin(c *gin.Context) {
+	var req authLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	token, user, err := h.authService.Authenticate(c.Request.Context(), req.Email, req.Password)
+	if err != nil {
+		switch err {
+		case domain.ErrInvalidCredentials, domain.ErrUserInactive:
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token":      token,
+		"token_type": "Bearer",
+		"expires_in": int(h.authService.TokenTTL().Seconds()),
+		"user": gin.H{
+			"id":           user.ID,
+			"email":        user.Email,
+			"name":         user.Name,
+			"is_superuser": user.IsSuperuser,
+		},
+	})
 }
 
 // ========== Health Check Handlers ==========

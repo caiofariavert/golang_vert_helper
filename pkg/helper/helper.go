@@ -19,6 +19,7 @@ type Helper struct {
 	repos         *adapters.RepositoryFactory
 	healthService *services.HealthService
 	actionService *services.ActionService
+	authService   *services.AuthService
 	syncService   *services.SyncService
 	workerPool    *healthchecks.WorkerPool
 	logger        *slog.Logger
@@ -48,6 +49,7 @@ func New(db *gorm.DB, opts ...Option) *Helper {
 		repos.GetActionExecutionRepository(),
 		logger,
 	)
+	h.authService = services.NewAuthService(db, logger)
 	h.syncService = services.NewSyncService(
 		repos.GetServiceRepository(),
 		repos.GetActionRepository(),
@@ -81,6 +83,7 @@ func WithLogger(l *slog.Logger) Option {
 			h.repos.GetActionExecutionRepository(),
 			l,
 		)
+		h.authService = services.NewAuthService(h.db, l)
 	}
 }
 
@@ -185,6 +188,7 @@ func (h *Helper) AutoMigrate() error {
 		&domain.ActionExecution{},
 		&domain.Worker{},
 		&domain.WorkerSnapshot{},
+		&domain.AuthUser{},
 	)
 }
 

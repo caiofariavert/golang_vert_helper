@@ -30,4 +30,9 @@ var (
 
 	// Configuration errors
 	ErrInvalidConfig = errors.New("invalid configuration")
+
+	// Auth errors
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrInvalidToken       = errors.New("invalid token")
+	ErrUserInactive       = errors.New("user inactive")
 )
