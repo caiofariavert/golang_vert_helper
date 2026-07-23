@@ -41,10 +41,11 @@ func (h *Helper) RegisterRoutes(router *gin.Engine, db *gorm.DB, middleware *gin
 
 	if middleware != nil {
 		protected.Use(*middleware)
+		group.Use(*middleware)
 	}
 
 	// Health check
-	protected.GET("/healthcare/", handlers.GetHealthcare)
+	group.GET("/healthcare/", handlers.GetHealthcare)
 	protected.GET("/healthcare/:name", handlers.GetServiceHealth)
 
 	// Actions
